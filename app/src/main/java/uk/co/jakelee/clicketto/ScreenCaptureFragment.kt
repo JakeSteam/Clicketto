@@ -1,18 +1,26 @@
 package uk.co.jakelee.clicketto
 
+import android.R.attr.bitmap
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
+import android.media.Image
+import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.*
 import android.widget.Button
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import java.nio.ByteBuffer
+
 
 class ScreenCaptureFragment : Fragment(), View.OnClickListener {
     private var mScreenDensity = 0
@@ -20,6 +28,7 @@ class ScreenCaptureFragment : Fragment(), View.OnClickListener {
     private var mResultData: Intent? = null
     private var mSurface: Surface? = null
     private var mMediaProjection: MediaProjection? = null
+    private var mImageReader: ImageReader? = null
     private var mVirtualDisplay: VirtualDisplay? = null
     private var mMediaProjectionManager: MediaProjectionManager? = null
     private var mButtonToggle: Button? = null
@@ -54,8 +63,7 @@ class ScreenCaptureFragment : Fragment(), View.OnClickListener {
         val metrics = DisplayMetrics()
         activity!!.windowManager.defaultDisplay.getMetrics(metrics)
         mScreenDensity = metrics.densityDpi
-        mMediaProjectionManager =
-            activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        mMediaProjectionManager = activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -133,12 +141,35 @@ class ScreenCaptureFragment : Fragment(), View.OnClickListener {
     }
 
     private fun setUpVirtualDisplay() {
+        val width = mSurfaceView!!.width
+        val height = mSurfaceView!!.height
+        mImageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 10)
         mVirtualDisplay = mMediaProjection!!.createVirtualDisplay(
             "ScreenCapture",
-            mSurfaceView!!.width, mSurfaceView!!.height, mScreenDensity,
+            width, height, mScreenDensity,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            mSurface, null, null
+            mImageReader!!.surface, null, null
         )
+        Log.d("logero", "Let's go")
+        mImageReader!!.setOnImageAvailableListener({ imageReader ->
+            imageReader?.acquireLatestImage()?.let {
+                val planes: Array<Image.Plane> = it.getPlanes()
+
+                val buffer: ByteBuffer = planes[0].getBuffer()
+                val pixelStride: Int = planes[0].getPixelStride()
+                val rowStride: Int = planes[0].getRowStride()
+                val rowPadding: Int = rowStride - pixelStride * width
+                val bitmap = Bitmap.createBitmap(
+                    width + rowPadding / pixelStride,
+                    height,
+                    Bitmap.Config.ARGB_8888
+                )
+                bitmap.copyPixelsFromBuffer(buffer)
+                imageReader.close()
+                val a = 1000
+                Log.d("logero", "Size: ${it.width} x ${it.height}")
+            }
+        }, null)
         mButtonToggle!!.setText("Stop")
     }
 
