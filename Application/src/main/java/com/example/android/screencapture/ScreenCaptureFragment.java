@@ -24,8 +24,6 @@ import android.hardware.display.VirtualDisplay;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
 import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
 import android.view.Surface;
@@ -36,6 +34,9 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import com.example.android.common.logger.Log;
+
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 
 /**
  * Provides UI for the screen capture.
