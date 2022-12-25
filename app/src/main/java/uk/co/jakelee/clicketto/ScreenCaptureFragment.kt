@@ -152,7 +152,6 @@ class ScreenCaptureFragment : Fragment(), View.OnClickListener {
     }
 
     companion object {
-        private const val TAG = "ScreenCaptureFragment"
         private const val STATE_RESULT_CODE = "result_code"
         private const val STATE_RESULT_DATA = "result_data"
         private const val REQUEST_MEDIA_PROJECTION = 1
