@@ -1,6 +1,5 @@
 package uk.co.jakelee.clicketto
 
-import android.R.attr.bitmap
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -13,27 +12,22 @@ import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
-import android.util.DisplayMetrics
 import android.util.Log
 import android.view.*
 import android.widget.Button
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import java.nio.ByteBuffer
-import java.util.concurrent.TimeUnit
 
 
 class ScreenCaptureFragment : Fragment(), View.OnClickListener {
-    private var mScreenDensity = 0
     private var mResultCode = 0
     private var mResultData: Intent? = null
-    private var mSurface: Surface? = null
     private var mMediaProjection: MediaProjection? = null
     private var mImageReader: ImageReader? = null
     private var mVirtualDisplay: VirtualDisplay? = null
     private var mMediaProjectionManager: MediaProjectionManager? = null
     private var mButtonToggle: Button? = null
-    private var mSurfaceView: SurfaceView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,19 +46,13 @@ class ScreenCaptureFragment : Fragment(), View.OnClickListener {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        mSurfaceView = view.findViewById<View>(R.id.surface) as SurfaceView
-        mSurface = mSurfaceView!!.holder.surface
         mButtonToggle = view.findViewById<View>(R.id.toggle) as Button
         mButtonToggle!!.setOnClickListener(this)
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
-        val activity: Activity? = activity
-        val metrics = DisplayMetrics()
-        activity!!.windowManager.defaultDisplay.getMetrics(metrics)
-        mScreenDensity = metrics.densityDpi
-        mMediaProjectionManager = activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        mMediaProjectionManager = requireActivity().getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -123,10 +111,6 @@ class ScreenCaptureFragment : Fragment(), View.OnClickListener {
     }
 
     private fun startScreenCapture() {
-        val activity: Activity? = activity
-        if (mSurface == null || activity == null) {
-            return
-        }
         if (mMediaProjection != null) {
             setUpVirtualDisplay()
         } else if (mResultCode != 0 && mResultData != null) {
@@ -142,12 +126,13 @@ class ScreenCaptureFragment : Fragment(), View.OnClickListener {
     }
 
     private fun setUpVirtualDisplay() {
-        val width = mSurfaceView!!.width
-        val height = mSurfaceView!!.height
+        val density = resources.displayMetrics.densityDpi
+        val width = resources.displayMetrics.widthPixels
+        val height = resources.displayMetrics.heightPixels
         mImageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
         mVirtualDisplay = mMediaProjection!!.createVirtualDisplay(
             "ScreenCapture",
-            width, height, mScreenDensity,
+            width, height, density,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             mImageReader!!.surface, null, null
         )
@@ -159,20 +144,12 @@ class ScreenCaptureFragment : Fragment(), View.OnClickListener {
                     val timeSince = System.currentTimeMillis() - lastRun
                     if (timeSince > 60) {
                         lastRun = System.currentTimeMillis()
-
                         Log.d("logero", "Received image #${++i}: $timeSince since last")
-                        val planes: Array<Image.Plane> = it.getPlanes()
-
-                        val buffer: ByteBuffer = planes[0].getBuffer()
-                        val pixelStride: Int = planes[0].getPixelStride()
-                        val rowStride: Int = planes[0].getRowStride()
-                        val rowPadding: Int = rowStride - pixelStride * width
-                        val bitmap = Bitmap.createBitmap(
-                            width + rowPadding / pixelStride,
-                            height,
-                            Bitmap.Config.ARGB_8888
-                        )
-                        bitmap.copyPixelsFromBuffer(buffer)
+                        val planes: Array<Image.Plane> = it.planes
+                        val pixelStride: Int = planes[0].pixelStride
+                        val rowPadding: Int = planes[0].rowStride - pixelStride * width
+                        val bitmap = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888)
+                        bitmap.copyPixelsFromBuffer(planes[0].buffer)
                         Log.d("logero", "Image converted to bitmap")
                     } else {
                         Log.d("logero", "Ignoring image")
