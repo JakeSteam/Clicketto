@@ -5,13 +5,12 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.graphics.Point
-import android.os.Build
-import android.os.CountDownTimer
-import android.os.Handler
-import android.os.IBinder
+import android.os.*
+import android.util.Log
 import android.view.*
 import android.view.View.OnTouchListener
 import android.widget.ImageView
+
 
 class FloatingWidgetService : Service(), View.OnClickListener {
     private var mWindowManager: WindowManager? = null
@@ -46,6 +45,30 @@ class FloatingWidgetService : Service(), View.OnClickListener {
         addFloatingWidgetView(inflater)
         implementClickListeners()
         implementTouchListenerToFloatingWidgetView()
+
+        val handler = Handler()
+        var down = false
+        val runnable: Runnable = object : Runnable {
+            override fun run() {
+                val coordinates = IntArray(2)
+                mFloatingWidgetView!!.getLocationOnScreen(coordinates)
+                Log.d("logero", "Trying to click at ${coordinates[0]} x ${coordinates[1]}")
+
+                val downTime = SystemClock.uptimeMillis()
+                val eventTime = SystemClock.uptimeMillis()
+                val action = if (down) MotionEvent.ACTION_UP else MotionEvent.ACTION_DOWN
+                val motionEvent = MotionEvent.obtain(downTime, eventTime, action,
+                    coordinates[0].toFloat(), coordinates[1].toFloat(), 0)
+                    //530f, 2070f, 0)
+                mFloatingWidgetView!!.dispatchTouchEvent(motionEvent)
+
+                val delay = if (down) 100L else 3000L
+                Log.d("logero", "Finished click. Down? $down. Next in $delay ms")
+                handler.postDelayed(this, delay)
+                down = !down
+            }
+        }
+        handler.postDelayed(runnable, 2000)
     }
 
     /*  Add Remove View to Window Manager  */
@@ -158,7 +181,6 @@ class FloatingWidgetService : Service(), View.OnClickListener {
                 }
 
                 override fun onTouch(v: View, event: MotionEvent): Boolean {
-
                     //Get Floating widget view params
                     val layoutParams =
                         mFloatingWidgetView!!.layoutParams as WindowManager.LayoutParams
@@ -178,6 +200,8 @@ class FloatingWidgetService : Service(), View.OnClickListener {
                             y_init_cord = y_cord
 
                             //remember the initial position.
+
+                            Log.d("logero", "Down touch received: $x_cord x $y_cord")
                             x_init_margin = layoutParams.x
                             y_init_margin = layoutParams.y
                             return true
@@ -193,9 +217,10 @@ class FloatingWidgetService : Service(), View.OnClickListener {
                             if (inBounded) {
                                 stopSelf()
                                 inBounded = false
-                                return true // changed
+                                return false // changed
                             }
 
+                            Log.d("logero", "Dowup touch received: $x_cord x $y_cord")
 
                             //Get the difference between initial coordinate and current coordinate
                             val x_diff = x_cord - x_init_cord
@@ -222,7 +247,7 @@ class FloatingWidgetService : Service(), View.OnClickListener {
 
                             //reset position if user drags the floating view
                             resetPosition(x_cord)
-                            return true
+                            return false
                         }
                         MotionEvent.ACTION_MOVE -> {
                             val x_diff_move = x_cord - x_init_cord
