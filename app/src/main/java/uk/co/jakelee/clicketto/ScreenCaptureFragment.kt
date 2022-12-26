@@ -20,6 +20,7 @@ import android.widget.Button
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import java.nio.ByteBuffer
+import java.util.concurrent.TimeUnit
 
 
 class ScreenCaptureFragment : Fragment(), View.OnClickListener {
@@ -143,7 +144,7 @@ class ScreenCaptureFragment : Fragment(), View.OnClickListener {
     private fun setUpVirtualDisplay() {
         val width = mSurfaceView!!.width
         val height = mSurfaceView!!.height
-        mImageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 10)
+        mImageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
         mVirtualDisplay = mMediaProjection!!.createVirtualDisplay(
             "ScreenCapture",
             width, height, mScreenDensity,
@@ -151,23 +152,32 @@ class ScreenCaptureFragment : Fragment(), View.OnClickListener {
             mImageReader!!.surface, null, null
         )
         Log.d("logero", "Let's go")
+        var i = 0
+        var lastRun = 0L
         mImageReader!!.setOnImageAvailableListener({ imageReader ->
-            imageReader?.acquireLatestImage()?.let {
-                val planes: Array<Image.Plane> = it.getPlanes()
+                imageReader?.acquireLatestImage()?.let {
+                    val timeSince = System.currentTimeMillis() - lastRun
+                    if (timeSince > 60) {
+                        lastRun = System.currentTimeMillis()
 
-                val buffer: ByteBuffer = planes[0].getBuffer()
-                val pixelStride: Int = planes[0].getPixelStride()
-                val rowStride: Int = planes[0].getRowStride()
-                val rowPadding: Int = rowStride - pixelStride * width
-                val bitmap = Bitmap.createBitmap(
-                    width + rowPadding / pixelStride,
-                    height,
-                    Bitmap.Config.ARGB_8888
-                )
-                bitmap.copyPixelsFromBuffer(buffer)
-                imageReader.close()
-                val a = 1000
-                Log.d("logero", "Size: ${it.width} x ${it.height}")
+                        Log.d("logero", "Received image #${++i}: $timeSince since last")
+                        val planes: Array<Image.Plane> = it.getPlanes()
+
+                        val buffer: ByteBuffer = planes[0].getBuffer()
+                        val pixelStride: Int = planes[0].getPixelStride()
+                        val rowStride: Int = planes[0].getRowStride()
+                        val rowPadding: Int = rowStride - pixelStride * width
+                        val bitmap = Bitmap.createBitmap(
+                            width + rowPadding / pixelStride,
+                            height,
+                            Bitmap.Config.ARGB_8888
+                        )
+                        bitmap.copyPixelsFromBuffer(buffer)
+                        Log.d("logero", "Image converted to bitmap")
+                    } else {
+                        Log.d("logero", "Ignoring image")
+                    }
+                    it.close()
             }
         }, null)
         mButtonToggle!!.setText("Stop")
