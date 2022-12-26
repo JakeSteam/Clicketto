@@ -6,6 +6,15 @@
     android:layout_height="match_parent"
     android:id="@+id/sample_main_layout">
 
+    <Button
+        android:id="@+id/create_floating_widget"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="createFloatingWidget"
+        android:text="Float me"
+        android:textColor="@android:color/white"
+        android:textSize="14sp" />
+
     <FrameLayout
         android:id="@+id/sample_content_fragment"
         android:layout_weight="2"
